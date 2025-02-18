@@ -50,18 +50,22 @@ async function getPersonalizedSuggestionAdvanced(userId, offset = 0) {
   const allQuestions = await fetchAllQuestions(6000, 0);
   console.log(`Fetched ${allQuestions.length} questions from LeetCode.`);
   
-  // 2. Exclude questions whose topicTags include "Database" (case-insensitive)
+  // 2. Exclude questions whose topicTags include "Database" (case-insensitive) and empty arrays.
   const filteredQuestions = allQuestions.filter(q => {
-    if (!q.topicTags || !Array.isArray(q.topicTags)) return true;
+    if (!q.topicTags || !Array.isArray(q.topicTags) || q.topicTags.length === 0) {
+      return false; 
+    }
+    
     return !q.topicTags.some(tag => tag.name.toLowerCase() === 'database');
   });
+  
+  console.log(`Filtered down to ${filteredQuestions.length} questions excluding Database topics.`);
   
   // 3. Retrieve user progress from the DB.
   const progress = await UserProgress.find({ userId });
   console.log(`User progress records fetched: ${progress.length}`);
   
   // 4. Get solved Problem documents from your Problem collection.
-  //    (This assumes UserProgress stores userId and problemId correctly.)
   const solvedProblemIds = progress.map(record => record.problemId.toString());
   const solvedProblems = await Problem.find({ _id: { $in: solvedProblemIds } });
   const solvedTitleSlugs = solvedProblems.map(problem => problem.titleSlug);
@@ -72,7 +76,6 @@ async function getPersonalizedSuggestionAdvanced(userId, offset = 0) {
   console.log(`Remaining unsolved questions: ${unsolvedQuestions.length}`);
   
   // 6. Sort unsolved questions:
-  //    First by difficulty order (Easy < Medium < Hard), then by acRate descending.
   unsolvedQuestions.sort((a, b) => {
     const diffA = difficultyOrder[a.difficulty.toLowerCase()] || 999;
     const diffB = difficultyOrder[b.difficulty.toLowerCase()] || 999;
@@ -148,3 +151,4 @@ with an acceptance rate of ${candidate.acRate}%. (Threshold used: ${usedThreshol
 }
 
 module.exports = { getPersonalizedSuggestionAdvanced };
+
